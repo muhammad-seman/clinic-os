@@ -1,12 +1,23 @@
 import "server-only";
 import { eq, sql, desc } from "drizzle-orm";
 import { db } from "../db/client";
-import { services, categories, employees, materials } from "../db/schema";
+import {
+  services,
+  categories,
+  employees,
+  materials,
+  packages,
+  packageServices,
+  roles,
+  bookingAssignments,
+} from "../db/schema";
 import type { z } from "zod";
 import type {
   createServiceSchema,
   createEmployeeSchema,
   createMaterialSchema,
+  createCategorySchema,
+  createPackageSchema,
 } from "@/lib/validation/master";
 
 export async function listServices() {
@@ -94,6 +105,90 @@ export async function insertMaterial(input: z.infer<typeof createMaterialSchema>
     })
     .returning({ id: materials.id });
   return row!;
+}
+
+export async function listCategoriesWithCount() {
+  const rows = await db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      serviceCount: sql<number>`count(${services.id})::int`,
+    })
+    .from(categories)
+    .leftJoin(services, eq(services.categoryId, categories.id))
+    .groupBy(categories.id)
+    .orderBy(categories.name);
+  return rows;
+}
+
+export async function insertCategory(input: z.infer<typeof createCategorySchema>) {
+  const [row] = await db
+    .insert(categories)
+    .values({ name: input.name })
+    .returning({ id: categories.id });
+  return row!;
+}
+
+export async function listPackages() {
+  const pkgs = await db
+    .select({
+      id: packages.id,
+      name: packages.name,
+      priceCents: packages.priceCents,
+      active: packages.active,
+    })
+    .from(packages)
+    .orderBy(packages.name);
+  if (pkgs.length === 0) return [];
+  const items = await db
+    .select({
+      packageId: packageServices.packageId,
+      serviceId: services.id,
+      serviceName: services.name,
+      servicePrice: services.priceCents,
+    })
+    .from(packageServices)
+    .innerJoin(services, eq(services.id, packageServices.serviceId));
+  return pkgs.map((p) => ({
+    ...p,
+    priceCents: p.priceCents.toString(),
+    services: items
+      .filter((i) => i.packageId === p.id)
+      .map((i) => ({
+        id: i.serviceId,
+        name: i.serviceName,
+        priceCents: i.servicePrice.toString(),
+      })),
+  }));
+}
+
+export async function insertPackage(input: z.infer<typeof createPackageSchema>) {
+  return await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(packages)
+      .values({ name: input.name, priceCents: input.priceCents })
+      .returning({ id: packages.id });
+    if (!row) throw new Error("insert failed");
+    await tx
+      .insert(packageServices)
+      .values(input.serviceIds.map((sid) => ({ packageId: row.id, serviceId: sid })));
+    return row;
+  });
+}
+
+export async function listTaskRoles() {
+  const rows = await db
+    .select({
+      id: roles.id,
+      slug: roles.slug,
+      label: roles.label,
+      usage: sql<number>`count(${bookingAssignments.bookingId})::int`,
+    })
+    .from(roles)
+    .leftJoin(bookingAssignments, eq(bookingAssignments.roleId, roles.id))
+    .groupBy(roles.id)
+    .orderBy(roles.label);
+  return rows;
 }
 
 export async function adjustMaterialStock(id: string, delta: number) {

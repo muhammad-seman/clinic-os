@@ -3,22 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { assert } from "@/server/auth/rbac";
 import { auth } from "@/server/auth/config";
-import { createEmployeeSvc } from "@/server/services/master";
+import { settleBooking } from "@/server/services/booking/settle";
 
-export async function createEmployeeAction(
-  formData: FormData,
+export async function settleRemainingAction(
+  id: string,
+  amountCents: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    await assert("master.create");
+    await assert("piutang.update");
     const session = await auth();
     const actorId = session?.user?.id;
     if (!actorId) return { ok: false, error: "unauthorized" };
-    await createEmployeeSvc(actorId, {
-      name: formData.get("name"),
-      type: formData.get("type"),
-      phone: formData.get("phone") || null,
-    });
-    revalidatePath("/master/employees");
+    await settleBooking(actorId, { id, amountCents });
+    revalidatePath("/piutang");
+    revalidatePath("/bookings");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "gagal" };

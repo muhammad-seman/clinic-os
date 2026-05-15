@@ -25,3 +25,13 @@ export const adjustStockSchema = z.object({
   id: z.string().uuid(),
   delta: z.coerce.number().int(),
 });
+
+export const createCategorySchema = z.object({
+  name: z.string().min(1).max(80),
+});
+
+export const createPackageSchema = z.object({
+  name: z.string().min(1).max(120),
+  priceCents: z.coerce.bigint().nonnegative(),
+  serviceIds: z.array(z.string().uuid()).min(2),
+});

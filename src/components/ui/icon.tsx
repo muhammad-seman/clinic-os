@@ -119,6 +119,18 @@ const ICONS = {
       <path d="M2 20a7 7 0 0 1 14 0M16 20a5 5 0 0 1 6 0" />
     </>
   ),
+  doctor: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21v-2a7 7 0 0 1 7-7M14 20h6M17 17v6" />
+    </>
+  ),
+  staff: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </>
+  ),
   shield: (
     <>
       <path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z" />
