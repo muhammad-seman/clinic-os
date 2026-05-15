@@ -1,0 +1,49 @@
+/* NS Aesthetic — design tokens */
+:root{
+  /* base palette */
+  --navy-900:#070f25;
+  --navy-800:#0b1d3d;
+  --navy-700:#142a52;
+  --navy-600:#1f3a6b;
+  --navy-500:#2f4d82;
+  --navy-300:#7b8aab;
+  --navy-100:#dfe3ec;
+
+  --bg:#fafaf7;
+  --bg-elev:#ffffff;
+  --bg-sunken:#f4f3ef;
+  --line:#e8e6df;
+  --line-strong:#d8d5cb;
+  --ink:#1a1d24;
+  --ink-2:#3b3f49;
+  --ink-3:#6b6f78;
+  --ink-4:#9aa0aa;
+
+  --gold:#b8956a;
+  --gold-soft:#e9dcc4;
+  --sage:#5a7d6f;
+  --sage-soft:#d8e3dc;
+  --rose:#a86973;
+  --rose-soft:#ead8db;
+
+  --radius-sm:6px;
+  --radius:10px;
+  --radius-lg:14px;
+
+  --shadow-sm:0 1px 0 rgba(11,29,61,.04), 0 1px 2px rgba(11,29,61,.04);
+  --shadow:0 1px 0 rgba(11,29,61,.04), 0 8px 24px -12px rgba(11,29,61,.18);
+  --shadow-lg:0 1px 0 rgba(11,29,61,.04), 0 24px 60px -20px rgba(11,29,61,.28);
+
+  --font-sans:"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display:"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* density */
+  --pad-sm:8px;
+  --pad:14px;
+  --pad-lg:20px;
+
+  --row-h:44px;
+}
+[data-density="compact"]{ --pad-sm:6px; --pad:10px; --pad-lg:14px; --row-h:36px; }
+[data-density="comfy"]  { --pad-sm:10px; --pad:18px; --pad-lg:28px; --row-h:52px; }
