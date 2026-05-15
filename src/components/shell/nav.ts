@@ -19,14 +19,14 @@ export const NAV: NavItem[] = [
   { id: "fee", group: "Keuangan", label: "Fee Karyawan", icon: "fee", href: "/fee", status: "done" },
   { id: "stock", group: "Inventaris", label: "Stok & Inventaris", icon: "stock", href: "/stock", status: "done" },
   { id: "insight", group: "Analitik", label: "Customer Insight", icon: "insight", href: "/insight", status: "done" },
-  { id: "attendance", group: "SDM", label: "Absensi", icon: "attendance", href: "/attendance", status: "wip" },
+  { id: "attendance", group: "SDM", label: "Absensi", icon: "attendance", href: "/attendance", status: "done" },
   { id: "master", group: "Sistem", label: "Master Data", icon: "master", href: "/master", status: "done" },
   { id: "users", group: "Akses & Keamanan", label: "Pengguna", icon: "users", href: "/access/users", status: "done" },
   { id: "roles", group: "Akses & Keamanan", label: "Peran & Izin", icon: "shield", href: "/access/roles", status: "done" },
   { id: "audit", group: "Akses & Keamanan", label: "Audit Log", icon: "history", href: "/access/audit", status: "done" },
   { id: "sessions", group: "Akses & Keamanan", label: "Sesi & Keamanan", icon: "key", href: "/access/sessions", status: "done" },
-  { id: "notif", group: "Sistem", label: "Notifikasi", icon: "bell", href: "/notif", status: "wip" },
-  { id: "config", group: "Sistem", label: "Konfigurasi", icon: "settings", href: "/config", status: "wip" },
+  { id: "notif", group: "Sistem", label: "Notifikasi", icon: "bell", href: "/notif", status: "done" },
+  { id: "config", group: "Sistem", label: "Konfigurasi", icon: "settings", href: "/config", status: "done" },
 ];
 
 export const PAGE_META: Record<string, { title: string; crumb: string }> = {

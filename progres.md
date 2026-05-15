@@ -4,6 +4,29 @@ Catatan singkat per iterasi. Terbaru di atas.
 
 ---
 
+## Iterasi 8 — 2026-05-15 · Attendance / Notif / Config (3 WIP terakhir)
+
+**Modul selesai (semua nav `done`):**
+- `/attendance` — Tap Hadir GPS dengan simulator dalam/luar radius + `RadiusViz` SVG. Pemilihan karyawan, validasi haversine vs `clinic.lat/lng/radius`, guard dobel-absen hari ini. Daftar "Kehadiran Hari Ini" + tabel riwayat 12 baris. Action `recordAttendanceAction` (RBAC `attendance.create`).
+- `/notif` — RSC penuh, 3 group: Reminder H-1 (booking besok), Stok Minim (`stock <= minStock`), Piutang overdue (`dueAt < now && remaining > 0`). Empty state per grup match prototype.
+- `/config` — Form 2-kolom: Klinik (nama/alamat/lat/lng/radius/timezone) + Threshold Apriori (support/confidence/lowStockMultiplier). Tabel Manajemen Akun dari `listUsers()`. Action `saveConfigAction` upsert ke `system_config`.
+
+**Schema/Service**
+- New `system_config(key text PK, value jsonb, updated_at)` di `schema/system-config.ts` + export. **Perlu `npm run db:push`.**
+- New services: `services/attendance/index.ts` (haversine + guard), `services/notif/index.ts`, `services/system-config/index.ts` (default in-code, override via row).
+- Audit log: `attendance.record`, `attendance.duplicate`, `attendance.out_of_range`, `config.update`.
+- Nav `attendance | notif | config` status → `done`.
+
+**Verifikasi**
+- `npx tsc --noEmit` clean.
+- `next build` sukses 25 routes. `/attendance` 3.18 kB · `/notif` 857 B · `/config` 2.28 kB.
+
+**Catatan**
+- `system_config` butuh `db:push`; service fallback ke default in-code jika tabel belum ada / row kosong.
+- Config "Manajemen Akun" hanya tampilkan list; CRUD ada di `/access/users`.
+
+---
+
 ## Iterasi 7 — 2026-05-15 · Fee / Stock / Insight + Dashboard pixel-match
 
 **Modul WIP berikut (batch 3):**
