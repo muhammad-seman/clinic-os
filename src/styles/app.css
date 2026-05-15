@@ -14,6 +14,8 @@ html,body{background:var(--bg-sunken)}
   gap:12px;padding:12px;background:var(--bg-sunken);
   transition:grid-template-columns .25s ease}
 .app[data-collapsed="true"]{--sidebar-w:64px}
+/* Hover-expand sementara: grid track melebar, content ikut bergeser (sama seperti toggle) */
+.app[data-collapsed="true"]:has(.side:hover){--sidebar-w:232px}
 .mobile-scrim{display:none}
 
 /* ── Sidebar ───────────────────────────────────────────────── */
@@ -28,9 +30,9 @@ html,body{background:var(--bg-sunken)}
 .side-brand .name small{display:block;color:#8d97ad;font-weight:400;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
 
 .side-section{padding:14px 12px 4px;color:#6c7693;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
-.app[data-collapsed="true"] .side-section,
-.app[data-collapsed="true"] .side-brand .name,
-.app[data-collapsed="true"] .side-foot .meta{display:none}
+.app[data-collapsed="true"]:not(:has(.side:hover)) .side-section,
+.app[data-collapsed="true"]:not(:has(.side:hover)) .side-brand .name,
+.app[data-collapsed="true"]:not(:has(.side:hover)) .side-foot .meta{display:none}
 
 .side-nav{display:flex;flex-direction:column;gap:1px;padding:4px 8px;flex:1;overflow:auto;scrollbar-width:thin}
 .side-nav::-webkit-scrollbar{width:6px}.side-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:4px}
@@ -50,10 +52,10 @@ html,body{background:var(--bg-sunken)}
 .nav-item .impl-tag.done{background:rgba(90,125,111,.18);color:#9fc3b3;border-color:rgba(90,125,111,.35)}
 .nav-item .impl-tag.wip{background:rgba(184,149,106,.12);color:#d9b88a;border-color:rgba(184,149,106,.3)}
 .nav-item[aria-current="page"] .impl-tag{display:none}
-.app[data-collapsed="true"] .nav-item{justify-content:center;padding:10px 0}
-.app[data-collapsed="true"] .nav-item span:not(.badge):not(.ico):not(.impl-tag){display:none}
-.app[data-collapsed="true"] .nav-item .badge,
-.app[data-collapsed="true"] .nav-item .impl-tag{display:none}
+.app[data-collapsed="true"]:not(:has(.side:hover)) .nav-item{justify-content:center;padding:10px 0}
+.app[data-collapsed="true"]:not(:has(.side:hover)) .nav-item span:not(.badge):not(.ico):not(.impl-tag){display:none}
+.app[data-collapsed="true"]:not(:has(.side:hover)) .nav-item .badge,
+.app[data-collapsed="true"]:not(:has(.side:hover)) .nav-item .impl-tag{display:none}
 
 .side-foot{margin-top:auto;padding:12px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
 .avatar{width:32px;height:32px;border-radius:50%;background:var(--navy-600);display:grid;place-items:center;color:#fff;font-weight:600;font-size:11px;flex:none}
