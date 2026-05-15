@@ -1,7 +1,12 @@
+import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { SidebarToggleButton } from "@/components/shell/app-shell.client";
+import { LogoutButton } from "@/components/shell/logout-button.client";
+import { fetchNotifCount } from "@/server/services/notif/count";
 
-export function Topbar({ title, crumb }: { title: string; crumb: string }) {
+export async function Topbar({ title, crumb }: { title: string; crumb: string }) {
+  const count = await fetchNotifCount();
+  const hasAlert = count > 0;
   return (
     <header className="topbar">
       <SidebarToggleButton />
@@ -15,13 +20,24 @@ export function Topbar({ title, crumb }: { title: string; crumb: string }) {
         <input placeholder="Cari klien, booking, atau jasa…" />
         <kbd>⌘K</kbd>
       </div>
-      <button className="icon-btn" title="Notifikasi">
+      <Link
+        href="/notif"
+        className="icon-btn"
+        title={hasAlert ? `${count} notifikasi` : "Notifikasi"}
+        aria-label="Notifikasi"
+      >
         <Icon name="bell" size={16} />
-        <span className="dot" />
-      </button>
-      <button className="icon-btn" title="Pengaturan">
+        {hasAlert && <span className="dot" />}
+      </Link>
+      <Link
+        href="/config"
+        className="icon-btn"
+        title="Pengaturan"
+        aria-label="Pengaturan"
+      >
         <Icon name="settings" size={16} />
-      </button>
+      </Link>
+      <LogoutButton />
     </header>
   );
 }

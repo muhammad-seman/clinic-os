@@ -4,6 +4,28 @@ Catatan singkat per iterasi. Terbaru di atas.
 
 ---
 
+## Iterasi 9 — 2026-05-15 · Topbar lonceng/setting/logout + Booking detail drawer
+
+**Topbar (RSC async sekarang):**
+- 🔔 Bell → `Link` ke `/notif`, ber-dot kalau total alert (besok + low stock + overdue) > 0 via `fetchNotifCount()`.
+- ⚙️ Settings → `Link` ke `/config`.
+- 🚪 Logout — `LogoutButton` client island memanggil `signOutAction` (server action) → `signOut({ redirectTo: "/login" })`.
+- Nav item: tag "✓ done" dihapus, hanya "WIP" yang tampil (semua sudah done).
+
+**Booking detail drawer (gap utama prototype):**
+- Row tabel `/bookings` sekarang clickable → drawer 3 tab: Ringkasan, Eksekusi, Pembayaran.
+- Eksekusi: tombol ubah status (Terjadwal/Mulai/Selesaikan/Tidak Hadir/Batalkan) via `setBookingStatusAction`.
+- Pembayaran: nominal cicilan + tombol "Lunasi Sisa". `applyPayment` di repo otomatis update `payment` (dp/paid) saat sisa = 0.
+- New endpoint: `GET /api/v1/bookings/[id]` (SWR fetcher).
+- New action: `setBookingStatusAction`, `settleBookingJsonAction`. Audit `booking.status`, `booking.settle`.
+
+**Verifikasi**
+- `npx tsc --noEmit` clean.
+- `next build` sukses 26 routes. `/bookings` 11 kB (+1.4 kB karena detail drawer).
+- Cross-check 14 halaman: master CRUD ✓, stock adjust ✓, fee mark/unmark ✓, settle piutang ✓, attendance GPS ✓, notif groups ✓, config save ✓, akses (users/roles/audit/sessions) ✓.
+
+---
+
 ## Iterasi 8 — 2026-05-15 · Attendance / Notif / Config (3 WIP terakhir)
 
 **Modul selesai (semua nav `done`):**

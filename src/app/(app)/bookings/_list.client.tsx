@@ -8,6 +8,7 @@ import { fmtIDR } from "@/lib/format";
 import { Icon } from "@/components/ui/icon";
 import type { BookingListResult } from "@/server/services/booking/list";
 import { BookingDrawer } from "./_drawer.client";
+import { BookingDetailDrawer } from "./_detail-drawer.client";
 
 const STATUS_LABEL: Record<string, string> = {
   scheduled: "Terjadwal",
@@ -60,6 +61,7 @@ export function BookingsList({
   const [query, setQuery] = useState(q);
   const [filter, setFilter] = useState(status);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const { data, size, setSize, isValidating, mutate } = useSWRInfinite<BookingListResult>(
     (i, prev) => {
@@ -143,7 +145,11 @@ export function BookingsList({
                   </tr>
                 )}
                 {items.map((b) => (
-                  <tr key={b.id} style={{ cursor: "default" }}>
+                  <tr
+                    key={b.id}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setDetailId(b.id)}
+                  >
                     <td>
                       <span className="row-id">{b.code}</span>
                     </td>
@@ -219,6 +225,12 @@ export function BookingsList({
           setDrawerOpen(false);
           mutate();
         }}
+      />
+
+      <BookingDetailDrawer
+        id={detailId}
+        onClose={() => setDetailId(null)}
+        onChanged={() => mutate()}
       />
     </>
   );

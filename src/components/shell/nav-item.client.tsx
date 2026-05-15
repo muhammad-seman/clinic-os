@@ -30,10 +30,8 @@ export function NavItem({
       <span>{label}</span>
       {hasBadge ? (
         <span className={"badge " + (badgeAlt ? "alt" : "")}>{badge}</span>
-      ) : status ? (
-        <span className={"impl-tag " + status} title={status === "done" ? "Sudah diimplementasi" : "Belum diimplementasi"}>
-          {status === "done" ? "✓" : "WIP"}
-        </span>
+      ) : status === "wip" ? (
+        <span className="impl-tag wip" title="Belum diimplementasi">WIP</span>
       ) : null}
     </Link>
   );

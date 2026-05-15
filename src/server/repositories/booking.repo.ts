@@ -92,7 +92,23 @@ export async function applyPayment(id: string, amountCents: bigint) {
     .set({
       paidCents: sql`${bookings.paidCents} + ${amountCents}`,
       remainingCents: sql`GREATEST(${bookings.remainingCents} - ${amountCents}, 0)`,
+      payment: sql`CASE
+        WHEN GREATEST(${bookings.remainingCents} - ${amountCents}, 0) = 0 AND (${bookings.paidCents} + ${amountCents}) > 0 THEN 'paid'
+        WHEN (${bookings.paidCents} + ${amountCents}) > 0 THEN 'dp'
+        ELSE ${bookings.payment}
+      END`,
     })
     .where(eq(bookings.id, id))
     .returning({ id: bookings.id, paidCents: bookings.paidCents, remainingCents: bookings.remainingCents });
+}
+
+export async function updateBookingStatus(
+  id: string,
+  status: "scheduled" | "in_progress" | "done" | "cancelled" | "no_show",
+) {
+  return await db
+    .update(bookings)
+    .set({ status })
+    .where(eq(bookings.id, id))
+    .returning({ id: bookings.id, status: bookings.status });
 }
