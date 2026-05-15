@@ -256,4 +256,26 @@ const ICONS = {
       <circle cx="4" cy="18" r="1" />
     </>
   ),
+  package: (
+    <>
+      <path d="M21 8 12 3 3 8v8l9 5 9-5z" />
+      <path d="M3 8l9 5 9-5M12 13v8" />
+    </>
+  ),
+  flask: (
+    <>
+      <path d="M9 3h6M10 3v6L4 20a1 1 0 0 0 .9 1.5h14.2A1 1 0 0 0 20 20l-6-11V3" />
+      <path d="M7 14h10" />
+    </>
+  ),
+  arrowDownRight: <path d="M7 7l10 10M17 7v10H7" />,
+  arrowUpRight: <path d="M7 17 17 7M7 7h10v10" />,
+  link: (
+    <>
+      <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" />
+      <path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
+    </>
+  ),
+  sparkle: <path d="M12 3v6M12 15v6M3 12h6M15 12h6M6 6l3 3M15 15l3 3M6 18l3-3M15 9l3-3" />,
+  trending: <path d="M3 17l6-6 4 4 8-8M14 7h7v7" />,
 };

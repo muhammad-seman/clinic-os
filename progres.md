@@ -4,43 +4,41 @@ Catatan singkat per iterasi. Terbaru di atas.
 
 ---
 
-## Iterasi 6 — 2026-05-15 · Master Data tabs + Dashboard/Calendar/Piutang
+## Iterasi 7 — 2026-05-15 · Fee / Stock / Insight + Dashboard pixel-match
 
-**Git** — init repo `clinic-os/`, user lokal `muhammad-seman <muhammad.seman030801@gmail.com>`, push ke `github.com/muhammad-seman/clinic-os`.
+**Modul WIP berikut (batch 3):**
+- `/fee` — KPI 3 (Total siap-bayar, Tindakan, Rata-rata). Period switcher (Minggu/Bulan/Kuartal) lewat `?p=`. Tabs Belum/Sudah/Semua. Agregasi `booking_assignments.fee_cents` per karyawan untuk booking `done|in_progress` dalam range periode. Aksi **Tandai Bayar** insert ke tabel baru `fee_payments(employee_id, period unique, amount_cents, paid_at)` + action **batal tandai**. Negatif case: dobel-tandai → error toast; revert → "tidak ada catatan".
+- `/stock` — KPI 4 (Total item, Nilai inventaris, Di bawah ambang, Pemakaian 30 hari). Grid-2: tabel stok dengan bar status (low/warn/ok) + tombol −1/+1/+10 (server action `adjustStockAction`, RBAC `stock.update`) | Log pengeluaran 30 hari (join `bookingMaterials`). Negatif: stok ≥0 dijaga `GREATEST(stock+delta,0)` di repo.
+- `/insight` — KPI 4 (Total Klien, Returning Rate, Avg Spend, Pola Apriori Aktif). Grid-2 Top Nominal & Top Frekuensi. Apriori per-klien basket (union service di semua booking, exclude cancelled) + slider Support/Confidence client-side dengan empty state jika threshold tidak terpenuhi.
 
-**Master Data** — refactor jadi single-page `/master` 5 tab (sesuai `screen-master.jsx`):
-- Tabs: Kategori&Jasa, Paket Promo, Peran, Karyawan, Stok Barang — dengan `.count` pill.
-- Tab 1: grid-2 (list kategori + tabel jasa). Tambah CRUD Kategori (`createCategoryAction`).
-- Tab 2: card grid bundle dengan kalkulasi `hemat` (sum harga jasa − harga paket). CRUD Paket via drawer pilih ≥2 jasa.
-- Tab 3: tabel Peran dari RBAC roles + bar chart frekuensi (count dari `booking_assignments`); pill Dokter/Staff dari slug.
-- Tab 4: card grid karyawan (avatar inisial, pill tipe + aktif/non-aktif).
-- Tab 5: tabel stok dengan kolom Nilai Stok (stock × HPP) + adjust −1/+1/+10 inline.
-- Drawer pattern: `_view.client.tsx` punya `DrawerShell` reusable + 5 drawers.
-- Subroute lama (`/master/services`, `/employees`, `/materials`, `/categories`, `/packages`, `/roles`) dihapus; nav `master.href` → `/master`.
-- Tambah icon `doctor` & `staff` di `components/ui/icon.tsx`.
-- Repo `master.repo.ts`: `listCategoriesWithCount`, `listPackages`, `insertCategory`, `insertPackage` (transaksi), `listTaskRoles` (left join `bookingAssignments` + COUNT).
-- Validation `master.ts`: `createCategorySchema`, `createPackageSchema` (serviceIds ≥ 2).
+**Dashboard re-write (match `screen-dashboard.jsx`):**
+- KPI 4: Revenue, Profit, Total Booking, Kas Piutang — semua pakai data riil.
+  - Profit bulan ini = `SUM(paid_cents) − SUM(booking_materials.qty × materials.cost_cents)` untuk booking non-cancelled.
+  - Δ vs bulan lalu untuk Revenue & Total; jumlah jatuh tempo &lt;7 hari untuk Piutang.
+- Revenue & Profit chart (SVG line+area) dengan period switcher `?p=day|week|month|year` → service `bucketsFor()` bikin 12 jam / 8 minggu / 8 bulan / 6 tahun real-aggregated.
+- Booking Mendatang, Top Nominal, Top Frekuensi, Apriori Preview (top 5 conf ≥60%, support ≥10%), Peringatan stok dengan bar.
 
-**Sidebar — 3 menu WIP berikut diselesaikan:**
-- `/dashboard` — KPI grid (Revenue bulan ini, Piutang, Total Booking, Karyawan) + Booking Mendatang (5 terdekat) + Peringatan Stok + Top Customer · Nominal. Data via `server/services/dashboard`.
-- `/calendar` — week view 08–18 dengan grid 60px + 7 hari, navigasi `?w=YYYY-MM-DD`, today highlighted gold. Data via `server/services/calendar.fetchWeekEvents`.
-- `/piutang` — KPI 3 (Total / <7 hari / Overdue) + tabel sisa pembayaran sorted by `dueAt`, action **Lunasi** = `settleBooking` dengan `amountCents = remaining`. Permission `piutang.update`.
+**Schema/Service**
+- New `feePayments` table di `schema/fee-payments.ts` + export di index (perlu `db:push`).
+- New services: `services/fee`, `services/stock`, `services/insight`. Dashboard service di-overhaul (bucket aggregation + profit calc + apriori preview).
+- New icons: `package`, `flask`, `arrowDownRight`, `arrowUpRight`, `link`, `sparkle`, `trending`.
 
 **Verifikasi**
 - `npx tsc --noEmit` clean.
-- `next build` sukses (25 routes). `/master` 7.33 kB · `/dashboard` 877 B · `/calendar` 877 B · `/piutang` 2.95 kB.
-- Nav status: `done` untuk dashboard, calendar, bookings, piutang, master, users, roles, audit, sessions. Sisanya `wip`: fee, stock, insight, attendance, notif, config.
+- `next build` sukses 25 routes. `/dashboard` 1.18 kB · `/fee` 2.43 kB · `/stock` 3.28 kB · `/insight` 2.19 kB.
+- Nav status: tinggal `attendance`, `notif`, `config` (`wip`).
 
 **Catatan**
-- Chart Revenue & Apriori (dashboard) belum diimplementasikan; bisa dijadikan iterasi berikut bila data sudah cukup.
-- Calendar belum punya event-click → drawer detail booking. Day/Month view juga belum.
+- `fee_payments` butuh `npm run db:push` agar tabel terbuat.
+- Dashboard period selain `month`: query agregasi sederhana (no index khusus untuk bucket besar).
 
 ---
 
-## Iterasi 1–5 (ringkas)
+## Iterasi 1–6 (ringkas)
 
-- I1 Bootstrap: Next 15 + TS strict + Tailwind 4 + Drizzle + Auth.js v5 + SWR + Zod. 16 tabel, RBAC scaffold, 15 stub route.
-- I2 Runtime + Bookings module (REST + RSC + SWR Infinite + drawer). Split auth config edge vs node untuk middleware.
-- I3 Demo seed (`db:seed-demo`: 4 kat, 7 jasa, 1 paket, 5 karyawan, 5 material, 8 booking). Master Services/Employees/Materials CRUD + adjust stock.
-- I4 Fix login: re-throw `RedirectError`, ramah pesan `CredentialsSignin`. Fix `unstable_cache` serialisasi `Set` → simpan sebagai `string[]`, bump key ke `rbac:v2`.
-- I5 UI align ke prototype: salin `app.css` + `tokens.css`, Icon component stroke 1.5. Auth split-panel, shell sidebar+topbar dengan badge dari DB, bookings tabel + drawer.
+- I1 Bootstrap Next 15 + Drizzle + Auth.js v5 + RBAC + 16 tabel.
+- I2 Bookings module REST/RSC/SWR + drawer; split auth edge vs node.
+- I3 Demo seed; CRUD Master Services/Employees/Materials + adjust stock.
+- I4 Fix login redirect + `unstable_cache` Set→string[] serialization.
+- I5 UI align: `app.css`/`tokens.css` masuk, Icon stroke 1.5, shell sidebar+topbar dari DB.
+- I6 Init git `clinic-os` + push GH; Master Data single page 5 tab; `/dashboard`, `/calendar`, `/piutang` selesai.
