@@ -5,19 +5,21 @@ import {
   services,
   categories,
   employees,
-  materials,
   packages,
   packageServices,
-  roles,
+  taskRoles,
   bookingAssignments,
 } from "../db/schema";
 import type { z } from "zod";
 import type {
   createServiceSchema,
   createEmployeeSchema,
-  createMaterialSchema,
   createCategorySchema,
   createPackageSchema,
+  updateServiceSchema,
+  updateCategorySchema,
+  updatePackageSchema,
+  updateEmployeeSchema,
 } from "@/lib/validation/master";
 
 export async function listServices() {
@@ -75,35 +77,6 @@ export async function insertEmployee(input: z.infer<typeof createEmployeeSchema>
     .insert(employees)
     .values({ name: input.name, type: input.type, phone: input.phone ?? null })
     .returning({ id: employees.id });
-  return row!;
-}
-
-export async function listMaterials() {
-  const rows = await db
-    .select({
-      id: materials.id,
-      name: materials.name,
-      unit: materials.unit,
-      costCents: materials.costCents,
-      stock: materials.stock,
-      minStock: materials.minStock,
-    })
-    .from(materials)
-    .orderBy(materials.name);
-  return rows.map((r) => ({ ...r, costCents: r.costCents.toString() }));
-}
-
-export async function insertMaterial(input: z.infer<typeof createMaterialSchema>) {
-  const [row] = await db
-    .insert(materials)
-    .values({
-      name: input.name,
-      unit: input.unit,
-      costCents: input.costCents,
-      stock: input.stock,
-      minStock: input.minStock,
-    })
-    .returning({ id: materials.id });
   return row!;
 }
 
@@ -179,26 +152,121 @@ export async function insertPackage(input: z.infer<typeof createPackageSchema>) 
 export async function listTaskRoles() {
   const rows = await db
     .select({
-      id: roles.id,
-      slug: roles.slug,
-      label: roles.label,
+      id: taskRoles.id,
+      slug: taskRoles.slug,
+      label: taskRoles.label,
+      forType: taskRoles.forType,
+      active: taskRoles.active,
       usage: sql<number>`count(${bookingAssignments.bookingId})::int`,
     })
-    .from(roles)
-    .leftJoin(bookingAssignments, eq(bookingAssignments.roleId, roles.id))
-    .groupBy(roles.id)
-    .orderBy(roles.label);
+    .from(taskRoles)
+    .leftJoin(bookingAssignments, eq(bookingAssignments.roleId, taskRoles.id))
+    .groupBy(taskRoles.id)
+    .orderBy(taskRoles.label);
   return rows;
 }
 
-export async function adjustMaterialStock(id: string, delta: number) {
-  const [row] = await db
-    .update(materials)
-    .set({
-      stock: sql`GREATEST(${materials.stock} + ${delta}, 0)`,
-      updatedAt: new Date(),
-    })
-    .where(eq(materials.id, id))
-    .returning({ id: materials.id, stock: materials.stock });
-  return row;
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
 }
+
+export async function insertTaskRole(input: {
+  label: string;
+  forType: "doctor" | "staff";
+}): Promise<{ id: string }> {
+  const base = slugify(input.label) || "peran";
+  let slug = base;
+  let attempt = 0;
+  // ensure uniqueness with small retry on conflict
+  // (small table; collisions rare)
+  while (attempt < 5) {
+    try {
+      const [row] = await db
+        .insert(taskRoles)
+        .values({ slug, label: input.label, forType: input.forType })
+        .returning({ id: taskRoles.id });
+      if (!row) throw new Error("insert failed");
+      return row;
+    } catch (e) {
+      attempt += 1;
+      slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+      if (attempt >= 5) throw e;
+    }
+  }
+  throw new Error("unreachable");
+}
+
+export async function updateTaskRole(
+  id: string,
+  patch: { label?: string; forType?: "doctor" | "staff"; active?: boolean },
+): Promise<void> {
+  const set: Record<string, unknown> = {};
+  if (patch.label !== undefined) set.label = patch.label;
+  if (patch.forType !== undefined) set.forType = patch.forType;
+  if (patch.active !== undefined) set.active = patch.active;
+  if (Object.keys(set).length === 0) return;
+  await db.update(taskRoles).set(set).where(eq(taskRoles.id, id));
+}
+
+export async function deleteTaskRole(id: string): Promise<void> {
+  await db.delete(taskRoles).where(eq(taskRoles.id, id));
+}
+
+export async function updateService(input: z.infer<typeof updateServiceSchema>) {
+  await db
+    .update(services)
+    .set({
+      name: input.name,
+      categoryId: input.categoryId ?? null,
+      priceCents: input.priceCents,
+      durationMin: input.durationMin,
+      active: input.active,
+    })
+    .where(eq(services.id, input.id));
+}
+
+export async function deleteService(id: string) {
+  await db.delete(services).where(eq(services.id, id));
+}
+
+export async function updateCategory(input: z.infer<typeof updateCategorySchema>) {
+  await db.update(categories).set({ name: input.name }).where(eq(categories.id, input.id));
+}
+
+export async function deleteCategory(id: string) {
+  await db.delete(categories).where(eq(categories.id, id));
+}
+
+export async function updatePackage(input: z.infer<typeof updatePackageSchema>) {
+  await db.transaction(async (tx) => {
+    await tx
+      .update(packages)
+      .set({ name: input.name, priceCents: input.priceCents, active: input.active })
+      .where(eq(packages.id, input.id));
+    await tx.delete(packageServices).where(eq(packageServices.packageId, input.id));
+    await tx
+      .insert(packageServices)
+      .values(input.serviceIds.map((sid) => ({ packageId: input.id, serviceId: sid })));
+  });
+}
+
+export async function deletePackage(id: string) {
+  await db.delete(packages).where(eq(packages.id, id));
+}
+
+export async function updateEmployee(input: z.infer<typeof updateEmployeeSchema>) {
+  await db
+    .update(employees)
+    .set({ name: input.name, type: input.type, phone: input.phone ?? null, active: input.active })
+    .where(eq(employees.id, input.id));
+}
+
+export async function deleteEmployee(id: string) {
+  await db.delete(employees).where(eq(employees.id, id));
+}
+

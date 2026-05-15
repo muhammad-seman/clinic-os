@@ -1,16 +1,17 @@
 import { sql } from "drizzle-orm";
-import { bigint, index, integer, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { bigint, index, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { services } from "./services";
 import { packages } from "./packages";
 import { employees } from "./employees";
-import { roles } from "./roles";
-import { materials } from "./materials";
+import { taskRoles } from "./task-roles";
+import { clients } from "./clients";
 
 export const bookings = pgTable(
   "bookings",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     code: text("code").notNull().unique(),
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
     clientName: text("client_name").notNull(),
     clientPhone: text("client_phone"),
     serviceId: uuid("service_id").references(() => services.id, { onDelete: "set null" }),
@@ -45,27 +46,13 @@ export const bookingAssignments = pgTable(
       .references(() => bookings.id, { onDelete: "cascade" }),
     roleId: uuid("role_id")
       .notNull()
-      .references(() => roles.id),
+      .references(() => taskRoles.id),
     employeeId: uuid("employee_id")
       .notNull()
       .references(() => employees.id, { onDelete: "cascade" }),
     feeCents: bigint("fee_cents", { mode: "bigint" }).notNull().default(sql`0`),
   },
   (t) => ({ pk: primaryKey({ columns: [t.bookingId, t.roleId, t.employeeId] }) }),
-);
-
-export const bookingMaterials = pgTable(
-  "booking_materials",
-  {
-    bookingId: uuid("booking_id")
-      .notNull()
-      .references(() => bookings.id, { onDelete: "cascade" }),
-    materialId: uuid("material_id")
-      .notNull()
-      .references(() => materials.id),
-    qty: integer("qty").notNull(),
-  },
-  (t) => ({ pk: primaryKey({ columns: [t.bookingId, t.materialId] }) }),
 );
 
 export type Booking = typeof bookings.$inferSelect;

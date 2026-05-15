@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, gt, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, ne, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { bookings, services, packages } from "@/server/db/schema";
 
@@ -22,8 +22,9 @@ export async function fetchPiutang() {
     .leftJoin(packages, eq(packages.id, bookings.packageId))
     .where(
       and(
-        or(eq(bookings.payment, "dp"), eq(bookings.payment, "termin")),
+        // Setiap booking dengan sisa > 0 dan tidak dibatalkan = piutang
         gt(bookings.remainingCents, sql`0`),
+        ne(bookings.status, "cancelled"),
       ),
     )
     .orderBy(asc(bookings.dueAt), asc(bookings.scheduledAt));

@@ -1,9 +1,9 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { auth } from "./config";
 import { db } from "@/server/db/client";
-import { rolePermissions, roles, users } from "@/server/db/schema";
+import { rolePermissions, roles, sessions, users } from "@/server/db/schema";
 import type { RoleSnapshot } from "@/lib/rbac/check";
 
 export class ForbiddenError extends Error {
@@ -27,10 +27,21 @@ async function loadRoleForUser(userId: string): Promise<Serializable | null> {
   return { slug: r.slug, permissions: perms.map((p) => p.key) };
 }
 
+async function isSessionValid(sid: string): Promise<boolean> {
+  const [s] = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(and(eq(sessions.id, sid), isNull(sessions.revokedAt)))
+    .limit(1);
+  return !!s;
+}
+
 export async function currentRole(): Promise<RoleSnapshot | null> {
   const session = await auth();
   const uid = session?.user?.id;
   if (!uid) return null;
+  const sid = (session as { sid?: string }).sid;
+  if (sid && !(await isSessionValid(sid))) return null;
   const cached = unstable_cache(
     () => loadRoleForUser(uid),
     ["rbac:v2", uid],

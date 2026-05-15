@@ -5,6 +5,10 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/http";
 import { fmtIDR } from "@/lib/format";
 import { Icon } from "@/components/ui/icon";
+import {
+  ClientSearchSelect,
+  type ClientSelection,
+} from "@/components/feature/client-search.client";
 import { createBookingAction } from "./_actions";
 
 type Options = {
@@ -16,14 +20,35 @@ export function BookingDrawer({
   open,
   onClose,
   onCreated,
+  hours,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  hours: { openHour: number; closeHour: number };
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [client, setClient] = useState<ClientSelection | null>(null);
   const { data } = useSWR<Options>(open ? (["options", "list"] as const) : null, fetcher);
+
+  // Tanggal & jam dipisah supaya pilihan jam bisa dibatasi sesuai jam operasional.
+  const today = new Date();
+  const defaultDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const [date, setDate] = useState(defaultDate);
+  const defaultHour = String(hours.openHour).padStart(2, "0");
+  const [time, setTime] = useState(`${defaultHour}:00`);
+
+  // Generate slot jam tiap 15 menit dari openHour..closeHour-1.
+  const timeSlots = (() => {
+    const out: string[] = [];
+    for (let h = hours.openHour; h < hours.closeHour; h++) {
+      for (const m of [0, 15, 30, 45]) {
+        out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+      }
+    }
+    return out;
+  })();
 
   if (!open) return null;
 
@@ -45,26 +70,41 @@ export function BookingDrawer({
           onSubmit={(e) => {
             e.preventDefault();
             setError(null);
+            if (!client || !client.name.trim()) {
+              setError("Pilih klien atau isi data klien baru");
+              return;
+            }
+            if (!date || !time) {
+              setError("Pilih tanggal dan jam");
+              return;
+            }
+            const h = parseInt(time.slice(0, 2), 10);
+            if (!Number.isFinite(h) || h < hours.openHour || h >= hours.closeHour) {
+              setError(
+                `Pilih jam antara ${String(hours.openHour).padStart(2, "0")}:00 – ${String(hours.closeHour).padStart(2, "0")}:00 WITA`,
+              );
+              return;
+            }
             const fd = new FormData(e.currentTarget);
+            // Gabungkan ke format datetime-local agar createBookingSchema bisa parse.
+            fd.set("scheduledAt", `${date}T${time}`);
             start(async () => {
               const res = await createBookingAction(fd);
-              if (res.ok) onCreated();
-              else setError(res.error);
+              if (res.ok) {
+                setClient(null);
+                setDate(defaultDate);
+                setTime(`${defaultHour}:00`);
+                onCreated();
+              } else setError(res.error);
             });
           }}
         >
           <div className="drawer-b">
             <div className="vstack" style={{ gap: 18 }}>
               <Section eyebrow="01" title="Data Klien">
-                <div className="grid-2 even" style={{ gap: 12 }}>
-                  <div className="field">
-                    <label>Nama klien</label>
-                    <input name="clientName" required className="input" />
-                  </div>
-                  <div className="field">
-                    <label>No. telepon</label>
-                    <input name="clientPhone" type="tel" className="input mono" />
-                  </div>
+                <div className="field">
+                  <label>Klien (cari atau buat baru)</label>
+                  <ClientSearchSelect value={client} onChange={setClient} />
                 </div>
               </Section>
 
@@ -98,13 +138,34 @@ export function BookingDrawer({
               <Section eyebrow="03" title="Jadwal & Catatan">
                 <div className="vstack" style={{ gap: 12 }}>
                   <div className="field">
-                    <label>Jadwal</label>
-                    <input
-                      name="scheduledAt"
-                      type="datetime-local"
-                      required
-                      className="input mono"
-                    />
+                    <label>
+                      Jadwal ·{" "}
+                      <span className="muted text-xs">
+                        jam buka {String(hours.openHour).padStart(2, "0")}:00 –{" "}
+                        {String(hours.closeHour).padStart(2, "0")}:00 WITA
+                      </span>
+                    </label>
+                    <div className="grid-2 even" style={{ gap: 10 }}>
+                      <input
+                        type="date"
+                        required
+                        className="input mono"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                      />
+                      <select
+                        required
+                        className="select mono"
+                        value={time}
+                        onChange={(e) => setTime(e.target.value)}
+                      >
+                        {timeSlots.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="field">
                     <label>Catatan internal</label>

@@ -36,8 +36,6 @@ export function SessionsView({ sessions }: { sessions: SessionRow[] }) {
     minPwLen: 10,
     requireSymbols: true,
     requireNumbers: true,
-    require2faAdmin: true,
-    require2faAll: false,
     sessionTtlHours: 12,
     lockoutAfter: 5,
     lockoutMinutes: 30,
@@ -115,14 +113,10 @@ export function SessionsView({ sessions }: { sessions: SessionRow[] }) {
           tone="rose"
         />
         <KpiSmall
-          icon="shield"
-          label="2FA Wajib"
-          value={policy.require2faAll ? "Semua" : "Admin+"}
-          hint={
-            policy.require2faAll
-              ? "Untuk semua pengguna"
-              : "Superadmin, Owner, Admin"
-          }
+          icon="pin"
+          label="Sesi di Klinik"
+          value={sessions.filter((s) => s.geoFlag === "clinic").length}
+          hint="Login dari IP klinik"
           tone="gold"
         />
         <KpiSmall
@@ -318,24 +312,11 @@ export function SessionsView({ sessions }: { sessions: SessionRow[] }) {
           <div className="card">
             <div className="card-h">
               <div>
-                <h3>Otentikasi Multi-Faktor</h3>
-                <p>TOTP via Google Authenticator / Authy</p>
+                <h3>Sesi &amp; Akses Kontrol</h3>
+                <p>Timeout, allowlist IP, batasan ekspor</p>
               </div>
             </div>
             <div className="card-b vstack" style={{ gap: 14 }}>
-              <ToggleRow
-                label="Wajibkan 2FA untuk Superadmin & Admin"
-                hint="Peran dengan akses sensitif harus mendaftar TOTP."
-                value={policy.require2faAdmin}
-                onChange={(v) => setP("require2faAdmin", v)}
-              />
-              <ToggleRow
-                label="Wajibkan 2FA untuk semua pengguna"
-                hint="Termasuk karyawan. Login tanpa 2FA akan diblokir."
-                value={policy.require2faAll}
-                onChange={(v) => setP("require2faAll", v)}
-              />
-              <div className="divider" />
               <div className="field">
                 <label>Session Timeout · {policy.sessionTtlHours} jam idle</label>
                 <input

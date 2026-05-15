@@ -85,51 +85,6 @@ export default async function Page() {
           </Group>
 
           <Group
-            title="Alert Stok Minim"
-            icon="flask"
-            iconColor="var(--rose)"
-            count={data.lowStock.length}
-          >
-            {data.lowStock.length === 0 ? (
-              <div className="empty">
-                <b>Semua stok aman</b>Tidak ada item ≤ ambang batas.
-              </div>
-            ) : (
-              data.lowStock.map((m) => (
-                <div
-                  key={m.id}
-                  className="hstack"
-                  style={{
-                    padding: "12px 18px",
-                    borderBottom: "1px solid var(--line)",
-                    gap: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 8,
-                      background: "var(--rose-soft)",
-                      color: "var(--rose)",
-                      display: "grid",
-                      placeItems: "center",
-                    }}
-                  >
-                    <Icon name="flask" size={16} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 500 }}>{m.name}</div>
-                    <div className="muted text-xs">
-                      Stok {m.stock} {m.unit} · ambang {m.min} {m.unit}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </Group>
-
-          <Group
             title="Reminder Piutang · Jatuh Tempo"
             icon="clock"
             iconColor="var(--gold)"

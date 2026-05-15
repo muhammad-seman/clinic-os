@@ -1,4 +1,9 @@
-export type BookingFilter = { q?: string | undefined; cursor?: string | null | undefined; status?: string | undefined };
+export type BookingFilter = {
+  q?: string | undefined;
+  cursor?: string | null | undefined;
+  status?: string | undefined;
+  payment?: string | undefined;
+};
 export type UserFilter = { q?: string | undefined; cursor?: string | null | undefined; role?: string | undefined };
 export type AuditFilter = { q?: string | undefined; cursor?: string | null | undefined; action?: string | undefined };
 
@@ -16,9 +21,6 @@ export const K = {
   },
   sessions: {
     list: (userId: string) => ["sessions", "list", { userId }] as const,
-  },
-  materials: {
-    list: () => ["materials", "list"] as const,
   },
   attendance: {
     list: (f: { employeeId?: string; from?: string; to?: string }) =>

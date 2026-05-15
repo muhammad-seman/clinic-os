@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { roleDef } from "../_shared";
@@ -15,7 +15,6 @@ const MODULE_ICON: Record<string, string> = {
   bookings: "booking",
   piutang: "receivable",
   fee: "fee",
-  stock: "stock",
   insight: "insight",
   attendance: "attendance",
   master: "master",
@@ -33,7 +32,6 @@ const MODULE_LABEL: Record<string, string> = {
   bookings: "Booking",
   piutang: "Kas Piutang",
   fee: "Fee Karyawan",
-  stock: "Stok & Inventaris",
   insight: "Customer Insight",
   attendance: "Absensi",
   master: "Master Data",
@@ -74,13 +72,10 @@ export function RolesView({
 
   const totalPerms = catalog.length;
 
-  const grouped = useMemo(() => {
-    const g: Record<string, Perm[]> = {};
-    catalog.forEach((p) => {
-      (g[p.module] ??= []).push(p);
-    });
-    return g;
-  }, [catalog]);
+  const grouped: Record<string, Perm[]> = {};
+  catalog.forEach((p) => {
+    (grouped[p.module] ??= []).push(p);
+  });
 
   const toggle = (slug: string, key: string) => {
     if (slug === "superadmin") return;

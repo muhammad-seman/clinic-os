@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
   auditLog,
@@ -217,11 +217,13 @@ export async function revokeAllSessions() {
     .where(isNull(sessions.revokedAt));
 }
 
-export async function revokeSessionsForUser(userId: string) {
-  await db
+export async function revokeSessionsForUser(userId: string): Promise<number> {
+  const rows = await db
     .update(sessions)
     .set({ revokedAt: new Date() })
-    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
+    .returning({ id: sessions.id });
+  return rows.length;
 }
 
 export async function updateUserPatch(
@@ -266,5 +268,49 @@ export async function inviteUser(input: {
     })
     .returning({ id: users.id });
   return u!.id;
+}
+
+export async function createUser(input: {
+  name: string;
+  email: string;
+  roleSlug: string;
+  password: string;
+}): Promise<string> {
+  const [r] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.slug, input.roleSlug))
+    .limit(1);
+  if (!r) throw new Error("role not found");
+  const argon2 = await import("argon2");
+  const passwordHash = await argon2.hash(input.password);
+  const [u] = await db
+    .insert(users)
+    .values({
+      email: input.email,
+      name: input.name,
+      roleId: r.id,
+      status: "active",
+      totpEnabled: false,
+      passwordHash,
+    })
+    .returning({ id: users.id });
+  return u!.id;
+}
+
+export async function deleteUsers(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.delete(users).where(inArray(users.id, ids));
+}
+
+export async function bulkUpdateUserStatus(
+  ids: string[],
+  status: UserRow["status"],
+): Promise<void> {
+  if (ids.length === 0) return;
+  await db
+    .update(users)
+    .set({ status, updatedAt: new Date() })
+    .where(inArray(users.id, ids));
 }
 

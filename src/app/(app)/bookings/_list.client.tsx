@@ -42,33 +42,42 @@ function fmtTime(d: string | Date) {
   return new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
 }
 
-const TABS: Array<{ id: string; label: string }> = [
-  { id: "", label: "Semua" },
-  { id: "scheduled", label: "Terjadwal" },
-  { id: "in_progress", label: "Berlangsung" },
-  { id: "done", label: "Selesai" },
+type FilterKind = "status" | "payment";
+const TABS: Array<{ id: string; label: string; kind: FilterKind | "" }> = [
+  { id: "", label: "Semua", kind: "" },
+  { id: "scheduled", label: "Terjadwal", kind: "status" },
+  { id: "in_progress", label: "Berlangsung", kind: "status" },
+  { id: "done", label: "Selesai", kind: "status" },
+  { id: "dp", label: "DP / Termin", kind: "payment" },
 ];
 
 export function BookingsList({
   initialData,
   q,
   status,
+  hours,
 }: {
   initialData: BookingListResult;
   q: string;
   status: string;
+  hours: { openHour: number; closeHour: number };
 }) {
   const [query, setQuery] = useState(q);
   const [filter, setFilter] = useState(status);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  const activeTab = TABS.find((t) => t.id === filter) ?? TABS[0]!;
+  const statusParam = activeTab.kind === "status" ? filter : undefined;
+  const paymentParam = activeTab.kind === "payment" ? "outstanding" : undefined;
+
   const { data, size, setSize, isValidating, mutate } = useSWRInfinite<BookingListResult>(
     (i, prev) => {
       if (prev && !prev.nextCursor) return null;
       return K.bookings.list({
         q: query,
-        status: filter || undefined,
+        status: statusParam,
+        payment: paymentParam,
         cursor: prev?.nextCursor ?? null,
       });
     },
@@ -79,7 +88,15 @@ export function BookingsList({
   const items = data?.flatMap((d) => d.items) ?? [];
   const last = data?.[data.length - 1];
   const hasMore = !!last?.nextCursor;
-  const totalCount = items.length;
+  // Server-provided counts (from the first page response, before any cursor pagination).
+  const counts = data?.[0]?.counts ?? null;
+  const tabCount = (id: string, kind: FilterKind | "") => {
+    if (!counts) return items.length;
+    if (id === "") return counts.total;
+    if (kind === "status") return counts[id as "scheduled" | "in_progress" | "done"] ?? 0;
+    if (kind === "payment") return counts.outstanding;
+    return 0;
+  };
 
   return (
     <>
@@ -112,9 +129,7 @@ export function BookingsList({
               onClick={() => setFilter(t.id)}
             >
               {t.label}
-              <span className="count">
-                {t.id === "" ? totalCount : items.filter((b) => b.status === t.id).length}
-              </span>
+              <span className="count">{tabCount(t.id, t.kind)}</span>
             </button>
           ))}
         </div>
@@ -225,6 +240,7 @@ export function BookingsList({
           setDrawerOpen(false);
           mutate();
         }}
+        hours={hours}
       />
 
       <BookingDetailDrawer

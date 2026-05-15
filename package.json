@@ -12,8 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "node --env-file=.env --import tsx src/server/db/seed.ts",
-    "db:bootstrap": "node --env-file=.env --import tsx src/server/db/bootstrap-admin.ts",
     "db:seed-demo": "node --env-file=.env --import tsx src/server/db/seed-demo.ts",
+    "db:truncate": "node --env-file=.env --import tsx src/server/db/truncate.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

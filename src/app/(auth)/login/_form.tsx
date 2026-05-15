@@ -119,30 +119,6 @@ export function LoginForm() {
         <Icon name="login" size={13} />
       </button>
 
-      <div style={{ position: "relative", margin: "4px 0" }}>
-        <div style={{ height: 1, background: "var(--line)" }} />
-        <span
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%,-50%)",
-            background: "var(--bg-elev)",
-            padding: "0 10px",
-            fontSize: 11,
-            color: "var(--ink-4)",
-            letterSpacing: ".06em",
-            textTransform: "uppercase",
-          }}
-        >
-          atau
-        </span>
-      </div>
-
-      <a href="/2fa" className="btn" style={{ justifyContent: "center", width: "100%" }}>
-        <Icon name="shield" size={13} /> Verifikasi 2FA
-      </a>
-
       <div style={{ textAlign: "center", fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>
         Belum punya akun? Hubungi <b style={{ color: "var(--ink-2)" }}>Superadmin</b> untuk
         diundang.

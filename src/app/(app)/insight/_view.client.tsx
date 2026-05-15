@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { fmtIDR, initials } from "@/lib/format";
 import type { CustomerRow, AprioriRow } from "@/server/services/insight";
@@ -24,28 +24,16 @@ export function InsightView({
   const [supportMin, setSupportMin] = useState(0.15);
   const [confMin, setConfMin] = useState(0.6);
 
-  const filtered = useMemo(
-    () =>
-      rules
-        .filter((r) => r.support >= supportMin && r.conf >= confMin)
-        .sort((x, y) => y.conf - x.conf),
-    [rules, supportMin, confMin],
-  );
+  const filtered = rules
+    .filter((r) => r.support >= supportMin && r.conf >= confMin)
+    .sort((x, y) => y.conf - x.conf);
 
-  const topNom = useMemo(
-    () =>
-      [...customers]
-        .sort((a, b) => (BigInt(b.total) > BigInt(a.total) ? 1 : -1))
-        .slice(0, 10),
-    [customers],
-  );
-  const topFreq = useMemo(
-    () =>
-      [...customers]
-        .sort((a, b) => b.count - a.count || (BigInt(b.total) > BigInt(a.total) ? 1 : -1))
-        .slice(0, 10),
-    [customers],
-  );
+  const topNom = [...customers]
+    .sort((a, b) => (BigInt(b.total) > BigInt(a.total) ? 1 : -1))
+    .slice(0, 10);
+  const topFreq = [...customers]
+    .sort((a, b) => b.count - a.count || (BigInt(b.total) > BigInt(a.total) ? 1 : -1))
+    .slice(0, 10);
 
   const returning = customers.filter((c) => c.count > 1).length;
   const returningRate = customers.length

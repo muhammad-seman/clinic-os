@@ -16,7 +16,16 @@ export type ClinicConfig = {
 export type ThresholdConfig = {
   aprioriSupport: number;
   aprioriConfidence: number;
-  lowStockMultiplier: number;
+};
+
+/**
+ * Jam operasional klinik dalam zona WITA (Asia/Makassar).
+ * openHour inklusif (0..23), closeHour eksklusif (1..24).
+ * Contoh: openHour=9, closeHour=21 → klinik buka 09:00 sampai 21:00.
+ */
+export type OperatingHoursConfig = {
+  openHour: number;
+  closeHour: number;
 };
 
 const DEFAULT_CLINIC: ClinicConfig = {
@@ -31,7 +40,11 @@ const DEFAULT_CLINIC: ClinicConfig = {
 const DEFAULT_THRESHOLDS: ThresholdConfig = {
   aprioriSupport: 0.1,
   aprioriConfidence: 0.6,
-  lowStockMultiplier: 1.0,
+};
+
+const DEFAULT_HOURS: OperatingHoursConfig = {
+  openHour: 9,
+  closeHour: 21,
 };
 
 async function readKey<T>(key: string, fallback: T): Promise<T> {
@@ -43,7 +56,9 @@ async function readKey<T>(key: string, fallback: T): Promise<T> {
       .limit(1);
     if (!row) return fallback;
     return { ...fallback, ...(row.value as object) } as T;
-  } catch {
+  } catch (e) {
+    // surface DB issues (e.g. missing table) instead of silently masking them
+    console.error(`[system-config] readKey("${key}") failed:`, e);
     return fallback;
   }
 }
@@ -56,9 +71,21 @@ export async function getThresholds(): Promise<ThresholdConfig> {
   return readKey<ThresholdConfig>("thresholds", DEFAULT_THRESHOLDS);
 }
 
+export async function getOperatingHours(): Promise<OperatingHoursConfig> {
+  const cfg = await readKey<OperatingHoursConfig>("hours", DEFAULT_HOURS);
+  // Clamp & sanity check
+  const open = Math.max(0, Math.min(23, Math.floor(cfg.openHour)));
+  const close = Math.max(open + 1, Math.min(24, Math.floor(cfg.closeHour)));
+  return { openHour: open, closeHour: close };
+}
+
 export async function saveSystemConfig(
   actorId: string,
-  patch: { clinic?: Partial<ClinicConfig>; thresholds?: Partial<ThresholdConfig> },
+  patch: {
+    clinic?: Partial<ClinicConfig>;
+    thresholds?: Partial<ThresholdConfig>;
+    hours?: Partial<OperatingHoursConfig>;
+  },
 ) {
   if (patch.clinic) {
     const current = await getClinicConfig();
@@ -77,6 +104,17 @@ export async function saveSystemConfig(
     await db
       .insert(systemConfig)
       .values({ key: "thresholds", value: next, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: systemConfig.key,
+        set: { value: next, updatedAt: new Date() },
+      });
+  }
+  if (patch.hours) {
+    const current = await getOperatingHours();
+    const next: OperatingHoursConfig = { ...current, ...patch.hours };
+    await db
+      .insert(systemConfig)
+      .values({ key: "hours", value: next, updatedAt: new Date() })
       .onConflictDoUpdate({
         target: systemConfig.key,
         set: { value: next, updatedAt: new Date() },

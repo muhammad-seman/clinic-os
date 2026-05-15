@@ -6,6 +6,10 @@ import { auth } from "@/server/auth/config";
 import { createBooking } from "@/server/services/booking/create";
 import { settleBooking } from "@/server/services/booking/settle";
 import { setBookingStatus } from "@/server/services/booking/status";
+import {
+  finalizeBookingExecution,
+  saveBookingExecution,
+} from "@/server/services/booking/execute";
 
 export async function createBookingAction(
   formData: FormData,
@@ -17,6 +21,7 @@ export async function createBookingAction(
     if (!actorId) return { ok: false, error: "unauthorized" };
 
     const row = await createBooking(actorId, {
+      clientId: formData.get("clientId") || null,
       clientName: formData.get("clientName"),
       clientPhone: formData.get("clientPhone") || null,
       scheduledAt: formData.get("scheduledAt"),
@@ -54,6 +59,8 @@ export async function settleBookingAction(
 export async function settleBookingJsonAction(input: {
   id: string;
   amountCents: string;
+  method?: "cash" | "transfer" | "qris" | "lainnya";
+  note?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await assert("bookings.update");
@@ -63,6 +70,8 @@ export async function settleBookingJsonAction(input: {
     await settleBooking(actorId, {
       id: input.id,
       amountCents: input.amountCents,
+      method: input.method,
+      note: input.note,
     });
     revalidatePath("/bookings");
     revalidatePath("/piutang");
@@ -84,6 +93,45 @@ export async function setBookingStatusAction(input: {
     await setBookingStatus(actorId, input);
     revalidatePath("/bookings");
     revalidatePath("/calendar");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "gagal" };
+  }
+}
+
+type ExecutePayload = {
+  id: string;
+  assignments: { roleId: string; employeeId: string; feeCents: string }[];
+  nextStatus?: "in_progress" | "done";
+};
+
+export async function saveBookingExecutionAction(
+  input: ExecutePayload,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await assert("bookings.update");
+    const session = await auth();
+    const actorId = session?.user?.id;
+    if (!actorId) return { ok: false, error: "unauthorized" };
+    await saveBookingExecution(actorId, input);
+    revalidatePath("/bookings");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "gagal" };
+  }
+}
+
+export async function finalizeBookingExecutionAction(
+  input: ExecutePayload,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await assert("bookings.update");
+    const session = await auth();
+    const actorId = session?.user?.id;
+    if (!actorId) return { ok: false, error: "unauthorized" };
+    await finalizeBookingExecution(actorId, input);
+    revalidatePath("/bookings");
     revalidatePath("/dashboard");
     return { ok: true };
   } catch (e) {

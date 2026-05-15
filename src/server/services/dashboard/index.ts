@@ -1,13 +1,13 @@
 import "server-only";
-import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
-  bookingMaterials,
   bookings,
-  materials,
+  bookingAssignments,
   packageServices,
   packages,
   services,
+  expenses,
 } from "@/server/db/schema";
 
 export type Period = "day" | "week" | "month" | "year";
@@ -96,30 +96,48 @@ export async function fetchDashboard(period: Period = "month") {
       ),
     );
 
-  const ids = rangeBookings.map((b) => b.id);
-  const costs = ids.length
-    ? await db
-        .select({
-          bookingId: bookingMaterials.bookingId,
-          cost: sql<string>`COALESCE(SUM(${bookingMaterials.qty} * ${materials.costCents}),0)::text`,
-        })
-        .from(bookingMaterials)
-        .innerJoin(materials, eq(materials.id, bookingMaterials.materialId))
-        .where(inArray(bookingMaterials.bookingId, ids))
-        .groupBy(bookingMaterials.bookingId)
-    : [];
-  const costMap = new Map(costs.map((c) => [c.bookingId, BigInt(c.cost)]));
+  // Per-booking total fee (across all roles) for the bookings in window.
+  const feeRows = await db
+    .select({
+      bookingId: bookingAssignments.bookingId,
+      scheduledAt: bookings.scheduledAt,
+      fee: sql<string>`COALESCE(SUM(${bookingAssignments.feeCents}),0)::text`,
+    })
+    .from(bookingAssignments)
+    .innerJoin(bookings, eq(bookings.id, bookingAssignments.bookingId))
+    .where(
+      and(
+        gte(bookings.scheduledAt, windowStart),
+        lt(bookings.scheduledAt, windowEnd),
+        ne(bookings.status, "cancelled"),
+      ),
+    )
+    .groupBy(bookingAssignments.bookingId, bookings.scheduledAt);
+  const feeByBooking = new Map(feeRows.map((r) => [r.bookingId, BigInt(r.fee)]));
+
+  // Expenses in window
+  const expensesRows = await db
+    .select({ amountCents: expenses.amountCents, occurredAt: expenses.occurredAt })
+    .from(expenses)
+    .where(and(gte(expenses.occurredAt, windowStart), lt(expenses.occurredAt, windowEnd)));
 
   const chart: ChartPoint[] = buckets.map((b) => {
     let rev = 0n;
-    let cogs = 0n;
+    let fee = 0n;
     for (const bk of rangeBookings) {
       if (bk.scheduledAt >= b.start && bk.scheduledAt < b.end) {
         rev += bk.paidCents;
-        cogs += costMap.get(bk.id) ?? 0n;
+        fee += feeByBooking.get(bk.id) ?? 0n;
       }
     }
-    return { label: b.label, rev: rev.toString(), profit: (rev - cogs).toString() };
+    let exp = 0n;
+    for (const ex of expensesRows) {
+      if (ex.occurredAt >= b.start && ex.occurredAt < b.end) {
+        exp += ex.amountCents;
+      }
+    }
+    const profit = rev - fee - exp;
+    return { label: b.label, rev: rev.toString(), profit: profit.toString() };
   });
 
   // Monthly KPIs
@@ -132,25 +150,40 @@ export async function fetchDashboard(period: Period = "month") {
     .from(bookings)
     .where(and(gte(bookings.scheduledAt, monthStart), lt(bookings.scheduledAt, monthEnd)));
 
-  // Profit this month
-  const monthIds = await db
-    .select({ id: bookings.id, paidCents: bookings.paidCents })
+  // Profit this month = revenue - fee karyawan - pengeluaran umum
+  const monthRevRow = await db
+    .select({ paidCents: bookings.paidCents })
     .from(bookings)
-    .where(and(gte(bookings.scheduledAt, monthStart), lt(bookings.scheduledAt, monthEnd), ne(bookings.status, "cancelled")));
+    .where(
+      and(
+        gte(bookings.scheduledAt, monthStart),
+        lt(bookings.scheduledAt, monthEnd),
+        ne(bookings.status, "cancelled"),
+      ),
+    );
   let monthRev = 0n;
-  for (const m of monthIds) monthRev += m.paidCents;
-  const monthIdsArr = monthIds.map((m) => m.id);
-  const monthCosts = monthIdsArr.length
-    ? await db
-        .select({
-          cost: sql<string>`COALESCE(SUM(${bookingMaterials.qty} * ${materials.costCents}),0)::text`,
-        })
-        .from(bookingMaterials)
-        .innerJoin(materials, eq(materials.id, bookingMaterials.materialId))
-        .where(inArray(bookingMaterials.bookingId, monthIdsArr))
-    : [{ cost: "0" }];
-  const monthCogs = BigInt(monthCosts[0]?.cost ?? "0");
-  const profitCents = (monthRev - monthCogs).toString();
+  for (const m of monthRevRow) monthRev += m.paidCents;
+
+  const [monthFeeRow] = await db
+    .select({ sum: sql<string>`COALESCE(SUM(${bookingAssignments.feeCents}),0)::text` })
+    .from(bookingAssignments)
+    .innerJoin(bookings, eq(bookings.id, bookingAssignments.bookingId))
+    .where(
+      and(
+        gte(bookings.scheduledAt, monthStart),
+        lt(bookings.scheduledAt, monthEnd),
+        ne(bookings.status, "cancelled"),
+      ),
+    );
+  const monthFee = BigInt(monthFeeRow?.sum ?? "0");
+
+  const [monthExpRow] = await db
+    .select({ sum: sql<string>`COALESCE(SUM(${expenses.amountCents}),0)::text` })
+    .from(expenses)
+    .where(and(gte(expenses.occurredAt, monthStart), lt(expenses.occurredAt, monthEnd)));
+  const monthExp = BigInt(monthExpRow?.sum ?? "0");
+
+  const profitCents = (monthRev - monthFee - monthExp).toString();
 
   const upcoming = await db
     .select({
@@ -168,19 +201,6 @@ export async function fetchDashboard(period: Period = "month") {
     .where(and(gte(bookings.scheduledAt, now), ne(bookings.status, "cancelled")))
     .orderBy(asc(bookings.scheduledAt))
     .limit(5);
-
-  const lowStock = await db
-    .select({
-      id: materials.id,
-      name: materials.name,
-      unit: materials.unit,
-      stock: materials.stock,
-      minStock: materials.minStock,
-    })
-    .from(materials)
-    .where(sql`${materials.stock} <= ${materials.minStock}`)
-    .orderBy(asc(materials.stock))
-    .limit(4);
 
   // Top customers nominal & frekuensi
   const topRows = await db
@@ -322,7 +342,6 @@ export async function fetchDashboard(period: Period = "month") {
       dueSoon: overdueCount[0]?.n ?? 0,
     },
     upcoming: upcoming.map((b) => ({ ...b, scheduledAt: b.scheduledAt.toISOString() })),
-    lowStock,
     topByNominal,
     topByFreq,
     aprioriPreview,

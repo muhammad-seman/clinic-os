@@ -31,13 +31,11 @@ const ACTION_META: Record<string, { icon: string; tone: "navy" | "sage" | "rose"
   "roles.update": { icon: "shield", tone: "gold", label: "Ubah peran" },
   "roles.write": { icon: "shield", tone: "gold", label: "Ubah peran" },
   "piutang.settle": { icon: "check", tone: "sage", label: "Lunasi piutang" },
-  "stock.adjust": { icon: "stock", tone: "navy", label: "Penyesuaian stok" },
   "finance.export": { icon: "download", tone: "navy", label: "Ekspor laporan" },
   "config.write": { icon: "settings", tone: "gold", label: "Ubah konfigurasi" },
   "sessions.revoke": { icon: "logout", tone: "rose", label: "Cabut sesi" },
   "master.service.create": { icon: "plus", tone: "sage", label: "Layanan baru" },
   "master.employee.create": { icon: "plus", tone: "sage", label: "Karyawan baru" },
-  "master.material.create": { icon: "plus", tone: "sage", label: "Material baru" },
 };
 
 const TONE_BG: Record<string, string> = {
@@ -115,7 +113,7 @@ export function AuditView({ events, actors }: { events: AuditRow[]; actors: Acto
           icon="login"
           label="Login Berhasil"
           value={stats.logins}
-          hint="Termasuk 2FA verified"
+          hint="Verifikasi kredensial"
           tone="sage"
         />
         <KpiSmall
@@ -135,8 +133,11 @@ export function AuditView({ events, actors }: { events: AuditRow[]; actors: Acto
       </div>
 
       <div className="card">
-        <div className="card-h" style={{ flexWrap: "wrap", gap: 10 }}>
-          <div className="search" style={{ minWidth: 240, flex: "1 1 240px", maxWidth: 380 }}>
+        <div
+          className="card-h"
+          style={{ gap: 8, flexWrap: "nowrap", alignItems: "center" }}
+        >
+          <div className="search" style={{ flex: 1, minWidth: 0 }}>
             <Icon name="search" size={15} />
             <input
               placeholder="Cari ID, IP, target…"
@@ -144,44 +145,42 @@ export function AuditView({ events, actors }: { events: AuditRow[]; actors: Acto
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <div className="hstack" style={{ gap: 8, flexWrap: "wrap" }}>
-            <div className="role-switch" role="tablist">
-              {(["24h", "7d", "30d", "all"] as const).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  aria-pressed={range === r}
-                  onClick={() => setRange(r)}
-                >
-                  <span>{RANGE_LABEL[r]}</span>
-                </button>
-              ))}
-            </div>
-            <select
-              className="select"
-              value={actor}
-              onChange={(e) => setActor(e.target.value)}
-              style={{ minWidth: 160 }}
-            >
-              <option value="all">Semua aktor</option>
-              {actors.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="select"
-              value={result}
-              onChange={(e) => setResult(e.target.value)}
-              style={{ minWidth: 130 }}
-            >
-              <option value="all">Semua hasil</option>
-              <option value="ok">Berhasil</option>
-              <option value="fail">Gagal</option>
-              <option value="denied">Ditolak</option>
-            </select>
+          <div className="role-switch" role="tablist" style={{ flex: "none" }}>
+            {(["24h", "7d", "30d", "all"] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                aria-pressed={range === r}
+                onClick={() => setRange(r)}
+              >
+                <span>{RANGE_LABEL[r]}</span>
+              </button>
+            ))}
           </div>
+          <select
+            className="select"
+            value={actor}
+            onChange={(e) => setActor(e.target.value)}
+            style={{ width: 160, flex: "none" }}
+          >
+            <option value="all">Semua aktor</option>
+            {actors.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="select"
+            value={result}
+            onChange={(e) => setResult(e.target.value)}
+            style={{ width: 140, flex: "none" }}
+          >
+            <option value="all">Semua hasil</option>
+            <option value="ok">Berhasil</option>
+            <option value="fail">Gagal</option>
+            <option value="denied">Ditolak</option>
+          </select>
         </div>
 
         <div className="card-b flush">

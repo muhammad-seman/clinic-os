@@ -1,7 +1,7 @@
 import "server-only";
-import { and, gte, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
+import { and, gte, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { bookings, materials } from "@/server/db/schema";
+import { bookings } from "@/server/db/schema";
 
 export async function fetchNotifCount(): Promise<number> {
   const start = new Date();
@@ -22,11 +22,6 @@ export async function fetchNotifCount(): Promise<number> {
       ),
     );
 
-  const [low] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(materials)
-    .where(lte(materials.stock, materials.minStock));
-
   const [overdue] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(bookings)
@@ -39,5 +34,5 @@ export async function fetchNotifCount(): Promise<number> {
       ),
     );
 
-  return (tomorrow?.n ?? 0) + (low?.n ?? 0) + (overdue?.n ?? 0);
+  return (tomorrow?.n ?? 0) + (overdue?.n ?? 0);
 }

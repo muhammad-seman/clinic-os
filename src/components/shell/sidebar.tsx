@@ -36,7 +36,6 @@ export function Sidebar({
   }, {});
   const def = ROLE_DEF[role.slug] ?? ROLE_DEF.admin!;
   const badgeMap: Record<string, number> = {
-    stock: badges.stock,
     calendar: badges.calendar,
     piutang: badges.piutang,
   };
@@ -60,7 +59,7 @@ export function Sidebar({
                 icon={n.icon}
                 label={n.label}
                 badge={badgeMap[n.id] ?? 0}
-                badgeAlt={n.id !== "stock"}
+                badgeAlt
                 matchPrefix={MATCH_PREFIX[n.id] ?? n.href}
                 status={n.status}
               />

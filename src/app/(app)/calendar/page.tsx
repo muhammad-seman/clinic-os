@@ -4,27 +4,63 @@ import { assert } from "@/server/auth/rbac";
 import { Topbar } from "@/components/shell/topbar";
 import { Icon } from "@/components/ui/icon";
 import { fetchWeekEvents } from "@/server/services/calendar";
+import { getOperatingHours } from "@/server/services/system-config";
 
-const fmtDow = new Intl.DateTimeFormat("id-ID", { weekday: "short" });
-const fmtMonthYear = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" });
+const TZ = "Asia/Makassar"; // WITA = UTC+8 (no DST)
+const WITA_OFFSET_MS = 8 * 60 * 60 * 1000;
 
-function fmtIso(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+const fmtDow = new Intl.DateTimeFormat("id-ID", { weekday: "short", timeZone: TZ });
+const fmtMonthYear = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: TZ });
+
+/** Returns WITA Y/M/D/H/dow (Mon=1..Sun=7) parts for a UTC date. */
+function witaParts(d: Date) {
+  // Shift by +8h then read UTC fields → equivalent to WITA local fields.
+  const shifted = new Date(d.getTime() + WITA_OFFSET_MS);
+  const dowSun0 = shifted.getUTCDay(); // 0..6, Sun=0
+  return {
+    y: shifted.getUTCFullYear(),
+    m: shifted.getUTCMonth(),
+    d: shifted.getUTCDate(),
+    h: shifted.getUTCHours(),
+    dowMon0: (dowSun0 + 6) % 7, // 0..6, Mon=0
+  };
 }
 
+/** Build a UTC Date for a given WITA Y-M-D 00:00 local time. */
+function witaDayStartToUtc(y: number, m: number, d: number) {
+  // WITA 00:00 = UTC of prior day 16:00 → Date.UTC at WITA midnight minus 8h.
+  return new Date(Date.UTC(y, m, d, 0, 0, 0) - WITA_OFFSET_MS);
+}
+
+function fmtIsoWita(d: Date) {
+  const p = witaParts(d);
+  const m = String(p.m + 1).padStart(2, "0");
+  const day = String(p.d).padStart(2, "0");
+  return `${p.y}-${m}-${day}`;
+}
+
+/** Parse the ?w= param (YYYY-MM-DD in WITA) and return the Monday of that week (UTC instant). */
 function parseStart(param?: string): Date {
-  const base = param ? new Date(`${param}T00:00:00`) : new Date();
-  base.setHours(0, 0, 0, 0);
-  const dow = base.getDay();
-  const diff = (dow + 6) % 7;
-  base.setDate(base.getDate() - diff);
-  return base;
+  let y: number, m: number, d: number;
+  if (param) {
+    const [ys, ms, ds] = param.split("-").map((n) => parseInt(n, 10));
+    if (!ys || !ms || !ds) return parseStart();
+    y = ys;
+    m = ms - 1;
+    d = ds;
+  } else {
+    const now = witaParts(new Date());
+    y = now.y;
+    m = now.m;
+    d = now.d;
+  }
+  const day = witaDayStartToUtc(y, m, d);
+  const parts = witaParts(day);
+  // Shift back to Monday
+  return new Date(day.getTime() - parts.dowMon0 * 86400 * 1000);
 }
 
-const HOURS = Array.from({ length: 11 }, (_, i) => i + 8);
+// jam ditentukan dari config (jam operasional klinik)
 
 export default async function Page({
   searchParams,
@@ -34,27 +70,28 @@ export default async function Page({
   await assert("calendar.view");
   const { w } = await searchParams;
   const weekStart = parseStart(w);
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const hours = await getOperatingHours();
+  const HOURS = Array.from(
+    { length: hours.closeHour - hours.openHour },
+    (_, i) => i + hours.openHour,
+  );
+  const days = Array.from({ length: 7 }, (_, i) => new Date(weekStart.getTime() + i * 86400 * 1000));
+  const todayParts = witaParts(new Date());
+  const todayKey = `${todayParts.y}-${todayParts.m}-${todayParts.d}`;
 
   const events = await fetchWeekEvents(weekStart);
 
   const byKey: Record<string, typeof events> = {};
+  let outOfRange = 0;
   for (const e of events) {
-    const dt = new Date(e.scheduledAt);
-    const key = `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}-${dt.getHours()}`;
+    const p = witaParts(new Date(e.scheduledAt));
+    if (p.h < hours.openHour || p.h >= hours.closeHour) outOfRange += 1;
+    const key = `${p.y}-${p.m}-${p.d}-${p.h}`;
     (byKey[key] ??= []).push(e);
   }
 
-  const prev = new Date(weekStart);
-  prev.setDate(prev.getDate() - 7);
-  const next = new Date(weekStart);
-  next.setDate(next.getDate() + 7);
+  const prev = new Date(weekStart.getTime() - 7 * 86400 * 1000);
+  const next = new Date(weekStart.getTime() + 7 * 86400 * 1000);
 
   return (
     <>
@@ -63,14 +100,19 @@ export default async function Page({
         <div className="page-h">
           <div>
             <h2>{fmtMonthYear.format(weekStart)}</h2>
-            <p>Pemandangan jadwal mingguan · 08:00 – 18:00</p>
+            <p>
+              Pemandangan jadwal mingguan ·{" "}
+              {String(hours.openHour).padStart(2, "0")}:00 – {String(hours.closeHour).padStart(2, "0")}:00 WITA ·{" "}
+              {events.length} booking minggu ini
+              {outOfRange > 0 && ` (${outOfRange} di luar jam tidak tampil)`}
+            </p>
           </div>
           <div className="row">
-            <Link href={`/calendar?w=${fmtIso(prev)}`} className="btn ghost sm">
+            <Link href={`/calendar?w=${fmtIsoWita(prev)}`} className="btn ghost sm">
               <Icon name="chevronLeft" size={14} />
             </Link>
             <Link href={`/calendar`} className="btn ghost sm">Hari Ini</Link>
-            <Link href={`/calendar?w=${fmtIso(next)}`} className="btn ghost sm">
+            <Link href={`/calendar?w=${fmtIsoWita(next)}`} className="btn ghost sm">
               <Icon name="chevronRight" size={14} />
             </Link>
             <Link href="/bookings" className="btn primary">
@@ -100,10 +142,12 @@ export default async function Page({
               WITA
             </div>
             {days.map((d) => {
-              const isToday = +d === +today;
+              const p = witaParts(d);
+              const dayKey = `${p.y}-${p.m}-${p.d}`;
+              const isToday = dayKey === todayKey;
               return (
                 <div
-                  key={+d}
+                  key={dayKey}
                   style={{
                     padding: "8px 10px",
                     borderBottom: "1px solid var(--line)",
@@ -116,7 +160,7 @@ export default async function Page({
                   <div style={{ fontSize: 10, color: "var(--ink-4)", textTransform: "uppercase" }}>
                     {fmtDow.format(d)}
                   </div>
-                  <b style={{ fontSize: 16 }}>{d.getDate()}</b>
+                  <b style={{ fontSize: 16 }}>{p.d}</b>
                 </div>
               );
             })}
@@ -137,11 +181,12 @@ export default async function Page({
                   {String(h).padStart(2, "0")}:00
                 </div>
                 {days.map((d) => {
-                  const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${h}`;
+                  const p = witaParts(d);
+                  const key = `${p.y}-${p.m}-${p.d}-${h}`;
                   const items = byKey[key] ?? [];
                   return (
                     <div
-                      key={`c-${+d}-${h}`}
+                      key={`c-${p.y}-${p.m}-${p.d}-${h}`}
                       style={{
                         padding: 4,
                         borderBottom: "1px solid var(--line)",

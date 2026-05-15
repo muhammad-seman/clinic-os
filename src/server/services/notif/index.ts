@@ -1,7 +1,7 @@
 import "server-only";
-import { and, asc, desc, eq, gte, isNotNull, lt, lte, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { bookings, materials, packages, services } from "@/server/db/schema";
+import { bookings, packages, services } from "@/server/db/schema";
 
 export type TomorrowBooking = {
   id: string;
@@ -9,14 +9,6 @@ export type TomorrowBooking = {
   client: string;
   when: string;
   label: string;
-};
-
-export type LowStock = {
-  id: string;
-  name: string;
-  unit: string;
-  stock: number;
-  min: number;
 };
 
 export type Overdue = {
@@ -56,18 +48,6 @@ export async function fetchNotifBundle() {
     .orderBy(asc(bookings.scheduledAt))
     .limit(20);
 
-  const lowStock = await db
-    .select({
-      id: materials.id,
-      name: materials.name,
-      unit: materials.unit,
-      stock: materials.stock,
-      min: materials.minStock,
-    })
-    .from(materials)
-    .where(lte(materials.stock, materials.minStock))
-    .orderBy(asc(materials.stock));
-
   const now = new Date();
   const overdue = await db
     .select({
@@ -97,7 +77,6 @@ export async function fetchNotifBundle() {
       when: b.when.toISOString(),
       label: b.packageName ?? b.serviceName ?? "—",
     })),
-    lowStock,
     overdue: overdue
       .filter((b) => b.dueAt)
       .map<Overdue>((b) => ({

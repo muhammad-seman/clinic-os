@@ -7,9 +7,6 @@ export const ROLE_DEFS: Record<string, { label: string; color: string }> = {
   superadmin: { label: "Superadmin", color: "#b8956a" },
   owner: { label: "Owner", color: "#5a7d6f" },
   admin: { label: "Admin", color: "#1f3a6b" },
-  staff: { label: "Karyawan", color: "#a86973" },
-  dokter: { label: "Dokter", color: "#1f3a6b" },
-  terapis: { label: "Terapis", color: "#5a7d6f" },
 };
 
 export function roleDef(slug: string) {

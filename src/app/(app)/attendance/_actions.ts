@@ -7,13 +7,13 @@ import { auth } from "@/server/auth/config";
 import { recordAttendance } from "@/server/services/attendance";
 
 const schema = z.object({
-  employeeId: z.string().uuid(),
   lat: z.number(),
   lng: z.number(),
+  targetUserId: z.string().uuid().optional(),
 });
 
 export async function recordAttendanceAction(
-  input: { employeeId: string; lat: number; lng: number },
+  input: { lat: number; lng: number; targetUserId?: string },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await assert("attendance.create");
@@ -21,6 +21,10 @@ export async function recordAttendanceAction(
     const actorId = session?.user?.id;
     if (!actorId) return { ok: false, error: "unauthorized" };
     const data = schema.parse(input);
+    // Hanya boleh proxy kalau punya permission khusus.
+    if (data.targetUserId && data.targetUserId !== actorId) {
+      await assert("attendance.proxy");
+    }
     await recordAttendance(actorId, data);
     revalidatePath("/attendance");
     return { ok: true };

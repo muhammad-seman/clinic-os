@@ -6,7 +6,7 @@ import {
   bookings,
   employees,
   feePayments,
-  roles,
+  taskRoles,
 } from "@/server/db/schema";
 import { log as audit } from "@/server/auth/audit";
 
@@ -47,7 +47,7 @@ export async function fetchFeeStats(period: Period) {
       empPhone: employees.phone,
       empType: employees.type,
       roleId: bookingAssignments.roleId,
-      roleName: roles.label,
+      roleName: taskRoles.label,
       feeCents: bookingAssignments.feeCents,
       bookingWhen: bookings.scheduledAt,
       bookingStatus: bookings.status,
@@ -55,7 +55,7 @@ export async function fetchFeeStats(period: Period) {
     .from(bookingAssignments)
     .innerJoin(bookings, eq(bookings.id, bookingAssignments.bookingId))
     .innerJoin(employees, eq(employees.id, bookingAssignments.employeeId))
-    .leftJoin(roles, eq(roles.id, bookingAssignments.roleId))
+    .leftJoin(taskRoles, eq(taskRoles.id, bookingAssignments.roleId))
     .where(
       and(
         gte(bookings.scheduledAt, start),

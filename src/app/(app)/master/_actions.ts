@@ -6,10 +6,19 @@ import { auth } from "@/server/auth/config";
 import {
   createServiceSvc,
   createEmployeeSvc,
-  createMaterialSvc,
-  adjustStockSvc,
   createCategorySvc,
   createPackageSvc,
+  updateServiceSvc,
+  deleteServiceSvc,
+  updateCategorySvc,
+  deleteCategorySvc,
+  updatePackageSvc,
+  deletePackageSvc,
+  updateEmployeeSvc,
+  deleteEmployeeSvc,
+  createTaskRoleSvc,
+  updateTaskRoleSvc,
+  deleteTaskRoleSvc,
 } from "@/server/services/master";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -71,6 +80,65 @@ export async function createPackageAction(formData: FormData): Promise<Result> {
   }
 }
 
+async function withActor<T>(
+  perm: string,
+  fn: (actorId: string) => Promise<T>,
+): Promise<Result> {
+  try {
+    await assert(perm);
+    const aid = await actor();
+    if (!aid) return { ok: false, error: "unauthorized" };
+    await fn(aid);
+    revalidatePath("/master");
+    return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function updateServiceAction(formData: FormData): Promise<Result> {
+  return withActor("master.update", (aid) =>
+    updateServiceSvc(aid, {
+      id: formData.get("id"),
+      name: formData.get("name"),
+      categoryId: formData.get("categoryId") || null,
+      priceCents: formData.get("priceCents"),
+      durationMin: formData.get("durationMin") || 30,
+      active: formData.get("active") === "true" || formData.get("active") === "on",
+    }),
+  );
+}
+
+export async function deleteServiceAction(id: string): Promise<Result> {
+  return withActor("master.delete", (aid) => deleteServiceSvc(aid, { id }));
+}
+
+export async function updateCategoryAction(formData: FormData): Promise<Result> {
+  return withActor("master.update", (aid) =>
+    updateCategorySvc(aid, { id: formData.get("id"), name: formData.get("name") }),
+  );
+}
+
+export async function deleteCategoryAction(id: string): Promise<Result> {
+  return withActor("master.delete", (aid) => deleteCategorySvc(aid, { id }));
+}
+
+export async function updatePackageAction(formData: FormData): Promise<Result> {
+  return withActor("master.update", (aid) =>
+    updatePackageSvc(aid, {
+      id: formData.get("id"),
+      name: formData.get("name"),
+      priceCents: formData.get("priceCents"),
+      serviceIds: formData.getAll("serviceIds"),
+      active: formData.get("active") === "true" || formData.get("active") === "on",
+    }),
+  );
+}
+
+export async function deletePackageAction(id: string): Promise<Result> {
+  return withActor("master.delete", (aid) => deletePackageSvc(aid, { id }));
+}
+
 export async function createEmployeeAction(formData: FormData): Promise<Result> {
   try {
     await assert("master.create");
@@ -88,39 +156,42 @@ export async function createEmployeeAction(formData: FormData): Promise<Result> 
   }
 }
 
-export async function createMaterialAction(formData: FormData): Promise<Result> {
-  try {
-    await assert("master.create");
-    const id = await actor();
-    if (!id) return { ok: false, error: "unauthorized" };
-    await createMaterialSvc(id, {
+export async function updateEmployeeAction(formData: FormData): Promise<Result> {
+  return withActor("master.update", (aid) =>
+    updateEmployeeSvc(aid, {
+      id: formData.get("id"),
       name: formData.get("name"),
-      unit: formData.get("unit"),
-      costCents: formData.get("costCents"),
-      stock: formData.get("stock") || 0,
-      minStock: formData.get("minStock") || 0,
-    });
-    revalidatePath("/master");
-    revalidatePath("/stock");
-    return { ok: true };
-  } catch (e) {
-    return fail(e);
-  }
+      type: formData.get("type"),
+      phone: formData.get("phone") || null,
+      active: formData.get("active") === "true" || formData.get("active") === "on",
+    }),
+  );
 }
 
-export async function adjustStockAction(
-  id: string,
-  delta: number,
-): Promise<Result> {
-  try {
-    await assert("stock.update");
-    const aid = await actor();
-    if (!aid) return { ok: false, error: "unauthorized" };
-    await adjustStockSvc(aid, { id, delta });
-    revalidatePath("/master");
-    revalidatePath("/stock");
-    return { ok: true };
-  } catch (e) {
-    return fail(e);
-  }
+export async function deleteEmployeeAction(id: string): Promise<Result> {
+  return withActor("master.delete", (aid) => deleteEmployeeSvc(aid, { id }));
+}
+
+export async function createTaskRoleAction(formData: FormData): Promise<Result> {
+  return withActor("master.create", (aid) =>
+    createTaskRoleSvc(aid, {
+      label: formData.get("label"),
+      forType: formData.get("forType") || "staff",
+    }),
+  );
+}
+
+export async function updateTaskRoleAction(formData: FormData): Promise<Result> {
+  return withActor("master.update", (aid) =>
+    updateTaskRoleSvc(aid, {
+      id: formData.get("id"),
+      label: formData.get("label"),
+      forType: formData.get("forType") || "staff",
+      active: formData.get("active") === "true" || formData.get("active") === "on",
+    }),
+  );
+}
+
+export async function deleteTaskRoleAction(id: string): Promise<Result> {
+  return withActor("master.delete", (aid) => deleteTaskRoleSvc(aid, { id }));
 }

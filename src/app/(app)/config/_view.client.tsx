@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { initials } from "@/lib/format";
-import type { ClinicConfig, ThresholdConfig } from "@/server/services/system-config";
+import type {
+  ClinicConfig,
+  OperatingHoursConfig,
+  ThresholdConfig,
+} from "@/server/services/system-config";
 import type { UserRow } from "@/server/repositories/access.repo";
 import { saveConfigAction } from "./_actions";
 
@@ -17,32 +21,80 @@ const fmtRelative = new Intl.DateTimeFormat("id-ID", {
 export function ConfigView({
   clinic,
   thresholds,
+  hours,
   users,
 }: {
   clinic: ClinicConfig;
   thresholds: ThresholdConfig;
+  hours: OperatingHoursConfig;
   users: UserRow[];
 }) {
   const router = useRouter();
   const [c, setC] = useState<ClinicConfig>(clinic);
+  const [latStr, setLatStr] = useState<string>(String(clinic.lat ?? ""));
+  const [lngStr, setLngStr] = useState<string>(String(clinic.lng ?? ""));
   const [t, setT] = useState<ThresholdConfig>(thresholds);
+  const [h, setH] = useState<OperatingHoursConfig>(hours);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  // Resync local state when server data changes (after save + router.refresh)
+  useEffect(() => {
+    setC(clinic);
+    setLatStr(String(clinic.lat ?? ""));
+    setLngStr(String(clinic.lng ?? ""));
+  }, [clinic.lat, clinic.lng, clinic.name, clinic.address, clinic.radius]);
+  useEffect(() => {
+    setT(thresholds);
+  }, [thresholds.aprioriSupport, thresholds.aprioriConfidence]);
+  useEffect(() => {
+    setH(hours);
+  }, [hours.openHour, hours.closeHour]);
+
+  const parseCoord = (s: string): number | null => {
+    const trimmed = s.trim();
+    if (!trimmed || trimmed === "-" || trimmed === "." || trimmed === "-.") return null;
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? n : null;
+  };
+
   function save() {
     setMsg(null);
     setError(null);
+    const lat = parseCoord(latStr);
+    const lng = parseCoord(lngStr);
+    if (lat === null) {
+      setError("Latitude tidak valid");
+      return;
+    }
+    if (lng === null) {
+      setError("Longitude tidak valid");
+      return;
+    }
+    if (lat < -90 || lat > 90) {
+      setError("Latitude harus antara -90 dan 90");
+      return;
+    }
+    if (lng < -180 || lng > 180) {
+      setError("Longitude harus antara -180 dan 180");
+      return;
+    }
+    if (h.closeHour <= h.openHour) {
+      setError("Jam tutup harus lebih besar dari jam buka");
+      return;
+    }
     start(async () => {
       const r = await saveConfigAction({
         clinic: {
           name: c.name,
           address: c.address,
-          lat: c.lat,
-          lng: c.lng,
+          lat,
+          lng,
           radius: c.radius,
         },
         thresholds: t,
+        hours: h,
       });
       if (!r.ok) setError(r.error);
       else {
@@ -114,36 +166,42 @@ export function ConfigView({
                 <label>Latitude</label>
                 <input
                   className="input mono"
-                  value={c.lat}
-                  onChange={(e) =>
-                    setC({ ...c, lat: Number.parseFloat(e.target.value) || 0 })
-                  }
+                  type="text"
+                  inputMode="decimal"
+                  value={latStr}
+                  onChange={(e) => setLatStr(e.target.value)}
+                  placeholder="-3.808385"
                 />
               </div>
               <div className="field">
                 <label>Longitude</label>
                 <input
                   className="input mono"
-                  value={c.lng}
-                  onChange={(e) =>
-                    setC({ ...c, lng: Number.parseFloat(e.target.value) || 0 })
-                  }
+                  type="text"
+                  inputMode="decimal"
+                  value={lngStr}
+                  onChange={(e) => setLngStr(e.target.value)}
+                  placeholder="114.786489"
                 />
               </div>
             </div>
             <div className="field">
-              <label>Radius (meter) · {c.radius} m</label>
+              <label>Radius (meter)</label>
               <input
-                type="range"
-                min={20}
-                max={300}
-                step={10}
+                className="input mono"
+                type="number"
+                min={1}
+                step={1}
                 value={c.radius}
-                onChange={(e) => setC({ ...c, radius: Number(e.target.value) })}
-                style={{ accentColor: "var(--navy-800)" }}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setC({ ...c, radius: v === "" ? 0 : Math.max(0, Math.trunc(Number(v))) });
+                }}
+                placeholder="80"
               />
               <div className="muted text-xs">
-                Tombol "Hadir" aktif hanya bila karyawan dalam radius ini.
+                Tombol "Hadir" aktif hanya bila karyawan dalam radius ini. Tidak ada batas
+                maksimum — isi sesuai kebutuhan (mis. 2000).
               </div>
             </div>
             <div className="field">
@@ -197,24 +255,60 @@ export function ConfigView({
                 Probabilitas minimum agar pola dimunculkan.
               </div>
             </div>
-            <div className="divider" />
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div className="card-h">
+          <div>
+            <h3>Jam Operasional Klinik</h3>
+            <p>
+              Mengontrol slot kalender dan validasi input booking · zona WITA
+            </p>
+          </div>
+          <div className="muted text-sm">
+            Aktif: <b className="mono">{String(h.openHour).padStart(2, "0")}:00</b>
+            {" – "}
+            <b className="mono">{String(h.closeHour).padStart(2, "0")}:00</b>
+          </div>
+        </div>
+        <div className="card-b">
+          <div className="grid-2 even" style={{ gap: 14 }}>
             <div className="field">
-              <label>
-                Faktor Ambang Stok · ×{t.lowStockMultiplier.toFixed(2)}
-              </label>
-              <input
-                type="range"
-                min={0.5}
-                max={2}
-                step={0.1}
-                value={t.lowStockMultiplier}
+              <label>Jam Buka</label>
+              <select
+                className="select mono"
+                value={h.openHour}
                 onChange={(e) =>
-                  setT({ ...t, lowStockMultiplier: Number(e.target.value) })
+                  setH({ ...h, openHour: Number(e.target.value) })
                 }
-                style={{ accentColor: "var(--gold)" }}
-              />
+              >
+                {Array.from({ length: 24 }, (_, i) => i).map((i) => (
+                  <option key={i} value={i}>
+                    {String(i).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
+              <div className="muted text-xs">Jam pertama menerima booking.</div>
+            </div>
+            <div className="field">
+              <label>Jam Tutup</label>
+              <select
+                className="select mono"
+                value={h.closeHour}
+                onChange={(e) =>
+                  setH({ ...h, closeHour: Number(e.target.value) })
+                }
+              >
+                {Array.from({ length: 24 }, (_, i) => i + 1).map((i) => (
+                  <option key={i} value={i}>
+                    {String(i).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
               <div className="muted text-xs">
-                Pengali ambang batas global untuk alert stok minim.
+                Booking terakhir harus dimulai sebelum jam ini.
               </div>
             </div>
           </div>

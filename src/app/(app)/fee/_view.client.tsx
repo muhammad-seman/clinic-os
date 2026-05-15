@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { fmtIDR, initials } from "@/lib/format";
@@ -34,11 +34,12 @@ export function FeeView({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    if (statusFilter === "unpaid") return stats.filter((s) => !s.paid);
-    if (statusFilter === "paid") return stats.filter((s) => !!s.paid);
-    return stats;
-  }, [stats, statusFilter]);
+  const filtered =
+    statusFilter === "unpaid"
+      ? stats.filter((s) => !s.paid)
+      : statusFilter === "paid"
+        ? stats.filter((s) => !!s.paid)
+        : stats;
 
   const grand = stats.reduce((a, s) => a + BigInt(s.total), 0n);
   const grandActions = stats.reduce((a, s) => a + s.count, 0);

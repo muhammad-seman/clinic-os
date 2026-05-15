@@ -68,6 +68,13 @@ const ICONS = {
       <path d="M3 12l9 4 9-4M3 17l9 4 9-4" />
     </>
   ),
+  wallet: (
+    <>
+      <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <path d="M16 12h3v3h-3a1.5 1.5 0 0 1 0-3z" />
+      <path d="M3 9h14" />
+    </>
+  ),
   insight: (
     <>
       <path d="M3 3v18h18" />

@@ -7,6 +7,7 @@ export async function GET(req: Request) {
   const data = await listBookings({
     q: url.searchParams.get("q") ?? undefined,
     status: (url.searchParams.get("status") ?? undefined) as never,
+    payment: (url.searchParams.get("payment") ?? undefined) as never,
     cursor: url.searchParams.get("cursor"),
     limit: Number(url.searchParams.get("limit") ?? 30),
   });
